@@ -1,0 +1,29 @@
+# Build directories
+/build/
+/build/examples/
+
+# Executables
+/atedot
+/examples/demo
+
+# Object files
+*.o
+
+# Backup files
+*~
+*.bak
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled Python files (if any examples use Python)
+*.pyc
+__pycache__/
