@@ -26,14 +26,21 @@ add_library(atedot_lib ${SRC_FILES})
 
 # Build main executable (depends on library)
 add_executable(atedot src/main.c)
-target_link_libraries(atedot PRIVATE atedot_lib m)
+
+if (WIN32)
+    set(MATH_LIB "")
+else()
+    set(MATH_LIB m)
+endif()
+
+target_link_libraries(atedot PRIVATE atedot_lib ${MATH_LIB})
 
 # Build all examples (one executable per .c file)
 file(GLOB EXAMPLES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.c)
 foreach(EX ${EXAMPLES})
     get_filename_component(EX_NAME ${EX} NAME_WE)
     add_executable(${EX_NAME} ${EX})
-    target_link_libraries(${EX_NAME} PRIVATE atedot_lib m)
+    target_link_libraries(${EX_NAME} PRIVATE atedot_lib ${MATH_LIB})
 endforeach()
 
 # --- Install paths ---

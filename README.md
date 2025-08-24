@@ -18,10 +18,13 @@ make install  # installs to ~/.local/bin/atedot
 ```
 
 ```bash
-mkdir build; cd build
-cmake .. -G "MinGW Makefiles"   # or "NMake Makefiles" if using MSVC
-cmake --build . --config Release
+cmake -S . -B build -G "MinG Makefiles"
 cmake --install .               # installs to %LOCALAPPDATA%\atedot\bin\atedot.exe
+```
+
+```bash
+cmake -S . -B build -G "Visual Studio 17 2022"
+cmake --build build --cnofig Release
 ```
 
 makefile works too

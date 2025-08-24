@@ -64,8 +64,8 @@ void plot_resize(Canvas *surf, int new_w, int new_h) {
     surf->cell_w = (new_w + 1) / 2;
     surf->cell_h = (new_h + 3) / 4;
 
-    surf->cells = calloc((size_t)(surf->cell_w * surf->cell_h), sizeof(uint8_t));
-    surf->colors = calloc((size_t)(surf->px_w * surf->px_h), sizeof(uint32_t));
+    surf->cells = (uint8_t*)calloc((size_t)(surf->cell_w * surf->cell_h), sizeof(uint8_t));
+    surf->colors = (uint32_t*)calloc((size_t)(surf->px_w * surf->px_h), sizeof(uint32_t));
 }
 
 void plot_free(Canvas *surf) {
