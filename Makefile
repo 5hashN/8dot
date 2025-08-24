@@ -48,6 +48,15 @@ $(EX_OBJ_DIR)/%.o: $(EXAMPLES_DIR)/%.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# install binary
+install: atedot
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 atedot $(DESTDIR)$(PREFIX)/bin/
+
+# uninstall binary
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/atedot
+
 # debug build
 debug: CFLAGS += -O0 -g
 debug: clean all
