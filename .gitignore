@@ -27,3 +27,6 @@ Thumbs.db
 # Compiled Python files (if any examples use Python)
 *.pyc
 __pycache__/
+
+# Testing
+*.csv

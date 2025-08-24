@@ -11,6 +11,7 @@ void repl(Canvas *surf) {
 
         if (strcmp(line, "exit") == 0) break;
         if (strcmp(line, "quit") == 0) break;
+
         if (strcmp(line, "clear") == 0) plot_clear(surf);
 
         else if (strncmp(line, "size ", 5) == 0) {
@@ -25,24 +26,30 @@ void repl(Canvas *surf) {
         else if (strncmp(line, "plot ", 5) == 0) {
             plot_clear(surf);
 
-            int is_sin = strstr(line, "sin") != NULL;
-            int is_cos = strstr(line, "cos") != NULL;
+            if (strstr(line, "sin") || strstr(line, "cos")) {
+                int is_sin = strstr(line, "sin") != NULL;
+                // int is_cos = strstr(line, "cos") != NULL;
 
-            if (!is_sin && !is_cos) {
-                printf("Unknown function. Try 'sin' or 'cos'.\n");
-            } else {
                 for (int x = 0; x < surf->px_w; ++x) {
                     double t = (double)x / surf->px_w * 4 * M_PI; // 2 periods
                     int y = surf->px_h/2 - (int)((is_sin ? sin(t) : cos(t)) * (surf->px_h * 0.4));
                     plot_set(surf, x, y, 0x00FF00); // green
                 }
+            } else {
+                char filename[128];
+                int xcol, ycol;
+                if (sscanf(line + 5, "%127[^ ] %d %d", filename, &xcol, &ycol) == 3) {
+                    if (plot_from_csv(surf, filename, xcol, ycol, 0x00FFFF) != 0) {
+                        printf("Failed to plot CSV %s\n", filename);
+                    }
+                } else {
+                    printf("Unknown function or usage: sin, cos, or plot <file> <xcol> <ycol>\n");
+                }
             }
             plot_to_stdout_color(surf);
-        }
-        else {
+        } else {
             printf("Unknown command.\n");
         }
-
         printf("plot> ");
     }
 }

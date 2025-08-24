@@ -1,9 +1,5 @@
 #include "../include/common.h"
 
-// ANSI color helpers
-#define ANSI_RESET   "\x1b[0m"
-#define ANSI_FG(c)   "\x1b[" c "m"
-
 typedef struct {
     int px_w, px_h;         // pixel-space size
     int cell_w, cell_h;     // braille character grid
@@ -101,20 +97,6 @@ void plot_unset(Canvas *surf, int x, int y) {
 
     surf->cells[cy * surf->cell_w + cx] &= ~(1u << bit);
     surf->colors[y * surf->px_w + x] = 0;
-}
-
-// bresenham line generation in pixel space
-void plot_line(Canvas *surf, int x0, int y0, int x1, int y1, uint32_t color) {
-    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = dx + dy;
-    for(;;) {
-        plot_set(surf, x0, y0, color);
-        if (x0 == x1 && y0 == y1) break;
-        int e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x0 += sx; }
-        if (e2 <= dx) { err += dx; y0 += sy; }
-    }
 }
 
 // dump to stdout with utf-8 braille and space for the rest

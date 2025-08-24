@@ -5,7 +5,7 @@
 int main() {
     setlocale(LC_ALL, "");
 
-    Canvas surf = plot_make(80, 24);    // 80x24 terminal pixels
+    Canvas surf = plot_make(100, 64);    // 80x24 terminal pixels
 
     repl(&surf);    // interactive REPL
 

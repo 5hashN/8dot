@@ -7,13 +7,13 @@ LDFLAGS = -lm
 SRC_DIR = src
 OBJ_DIR = build
 EXAMPLES_DIR = examples
-EX_OBJ_DIR = build/examples
+EX_OBJ_DIR = $(OBJ_DIR)/examples
 
-# core library sources (everything except main.c)
-LIB_SRC = $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
+# all sources under src, except main.c
+LIB_SRC = $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/**/*.c) $(wildcard $(SRC_DIR)/*.c))
 LIB_OBJ = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(LIB_SRC))
 
-# main.c for core executable
+# main.c
 MAIN_SRC = $(SRC_DIR)/main.c
 MAIN_OBJ = $(OBJ_DIR)/main.o
 
@@ -33,31 +33,27 @@ atedot: $(LIB_OBJ) $(MAIN_OBJ)
 $(EXAMPLES_DIR)/%: $(EX_OBJ_DIR)/%.o $(LIB_OBJ)
 	$(CC) $^ -o $@ $(LDFLAGS)
 
-# compile core library sources
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+# compile any .c under src -> build/
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # compile main.c
-$(OBJ_DIR)/main.o: $(MAIN_SRC) | $(OBJ_DIR)
+$(OBJ_DIR)/main.o: $(MAIN_SRC)
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Ccmpile example sources
-$(EX_OBJ_DIR)/%.o: $(EXAMPLES_DIR)/%.c | $(EX_OBJ_DIR)
+# compile example sources
+$(EX_OBJ_DIR)/%.o: $(EXAMPLES_DIR)/%.c
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# create build directories
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
-
-$(EX_OBJ_DIR):
-	mkdir -p $(EX_OBJ_DIR)
-
-# cebug build
+# debug build
 debug: CFLAGS += -O0 -g
 debug: clean all
 
-# clean build files
+# clean
 clean:
 	rm -rf $(OBJ_DIR) $(EX_OBJ_DIR) atedot $(EX_TARGETS)
 
-.PHONY: all clean
+.PHONY: all clean debug
