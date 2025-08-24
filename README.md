@@ -11,8 +11,20 @@ works best with monospaced fonts
 ## build
 
 ```bash
-make
+mkdir build && cd build
+cmake ..
+make -j
+make install  # installs to ~/.local/bin/atedot
 ```
+
+```bash
+mkdir build; cd build
+cmake .. -G "MinGW Makefiles"   # or "NMake Makefiles" if using MSVC
+cmake --build . --config Release
+cmake --install .               # installs to %LOCALAPPDATA%\atedot\bin\atedot.exe
+```
+
+makefile works too
 
 ## usage
 
