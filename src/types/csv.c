@@ -1,7 +1,8 @@
 #include "../../include/common.h"
 #include "../../include/atedot.h"
 
-int plot_from_csv(Canvas *surf, const char *filename, int col_x, int col_y, uint32_t color) {
+int plot_from_csv(Canvas *surf, const char *filename, int col_x, int col_y, uint32_t color,
+                    double *out_xmin, double *out_xmax, double *out_ymin, double *out_ymax) {
     FILE *f = fopen(filename, "r");
     if (!f) {
         perror("fopen");
@@ -70,7 +71,7 @@ int plot_from_csv(Canvas *surf, const char *filename, int col_x, int col_y, uint
         int px = (int)((x - x_min) / (x_max - x_min) * (surf->px_w - 1));
         int py = (int)((y_max - y) / (y_max - y_min) * (surf->px_h - 1)); // flip y
 
-        plot_set(surf, px, py, color);
+        canvas_pixel_set(surf, px, py, color);
     }
 
     // draw axes
@@ -81,5 +82,11 @@ int plot_from_csv(Canvas *surf, const char *filename, int col_x, int col_y, uint
     // plot_ax_ticks_numbers(surf, x_min, x_max, y_min, y_max, x0, y0);
 
     fclose(f);
+
+    if (out_xmin) *out_xmin = x_min;
+    if (out_xmax) *out_xmax = x_max;
+    if (out_ymin) *out_ymin = y_min;
+    if (out_ymax) *out_ymax = y_max;
+
     return 0;
 }

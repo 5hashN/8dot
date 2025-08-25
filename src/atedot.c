@@ -1,12 +1,6 @@
 #include "../include/common.h"
 
-typedef struct {
-    int px_w, px_h;         // pixel-space size
-    int cell_w, cell_h;     // braille character grid
-    uint8_t *cells;         // bits map to braille dots
-    uint32_t *colors;       // color per pixel
-} Canvas;
-
+// braille
 // map (col, row) in a 2x4 cell to braille bit index
 static inline int braille_bit(int col, int row) {
     static const int left [4] = {0, 1, 2, 6}; // dots 1, 2, 3, 7
@@ -40,7 +34,43 @@ static int utf8_encode(uint32_t cp, char out[4]) {
     }
 }
 
-Canvas plot_make(int px_w, int px_h) {
+static void print_cell(uint8_t mask) {
+    char buf[4]; int n = utf8_encode(braille_cp(mask), buf);
+    fwrite(buf, 1, (size_t)n, stdout);
+}
+
+static void print_cell_with_color(uint8_t mask, uint32_t color) {
+    char buf[4]; int n = utf8_encode(braille_cp(mask), buf);
+    printf("\x1b[38;2;%d;%d;%dm", (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF); // set fg color
+    fwrite(buf, 1, (size_t)n, stdout);
+    printf("\x1b[0m"); // reset
+}
+
+// canvas
+typedef struct {
+    int px_w, px_h;         // pixel-space size
+    int cell_w, cell_h;     // braille character grid
+    uint8_t *cells;         // bits map to braille dots
+    uint32_t *colors;       // color per pixel
+} Canvas;
+
+static uint32_t cell_color(const Canvas *surf, int x, int y) {
+    uint8_t mask = surf->cells[y * surf->cell_w + x];
+    if (mask == 0) return 0xFFFFFF;
+
+    for (int dy = 0; dy < 4; ++dy) {
+        for (int dx = 0; dx < 2; ++dx) {
+            int px = x*2 + dx, py = y*4 + dy;
+            if (px < surf->px_w && py < surf->px_h) {
+                int bit = braille_bit(dx, dy);
+                if (mask & (1u << bit)) return surf->colors[py * surf->px_w + px];
+            }
+        }
+    }
+    return 0xFFFFFF;
+}
+
+Canvas canvas_make(int px_w, int px_h) {
     Canvas surf;
     surf.px_w = px_w;
     surf.px_h = px_h;
@@ -55,7 +85,7 @@ Canvas plot_make(int px_w, int px_h) {
     return surf;
 }
 
-void plot_resize(Canvas *surf, int new_w, int new_h) {
+void canvas_resize(Canvas *surf, int new_w, int new_h) {
     free(surf->cells);
     free(surf->colors);
 
@@ -68,17 +98,18 @@ void plot_resize(Canvas *surf, int new_w, int new_h) {
     surf->colors = (uint32_t*)calloc((size_t)(surf->px_w * surf->px_h), sizeof(uint32_t));
 }
 
-void plot_free(Canvas *surf) {
+void canvas_free(Canvas *surf) {
     free(surf->cells); surf->cells = NULL;
     free(surf->colors); surf->colors = NULL;
 }
 
-void plot_clear(Canvas *surf) {
+void canvas_clear(Canvas *surf) {
     memset(surf->cells, 0, (size_t)surf->cell_w * (size_t)surf->cell_h);
+    memset(surf->colors, 0, (size_t)surf->px_w * (size_t)surf->px_h * sizeof(uint32_t));
 }
 
 // set a single pixel (x, y) in pixel space
-void plot_set(Canvas *surf, int x, int y, uint32_t color) {
+void canvas_pixel_set(Canvas *surf, int x, int y, uint32_t color) {
     if (x < 0 || y < 0 || x >= surf->px_w || y >= surf->px_h) return;
     int cx = x / 2; int cy = y / 4;
     int col = x % 2; int row = y % 4;
@@ -89,7 +120,7 @@ void plot_set(Canvas *surf, int x, int y, uint32_t color) {
 }
 
 // unset pixel
-void plot_unset(Canvas *surf, int x, int y) {
+void canvas_pixel_unset(Canvas *surf, int x, int y) {
     if (x < 0 || y < 0 || x >= surf->px_w || y >= surf->px_h) return;
     int cx = x / 2; int cy = y / 4;
     int col = x % 2; int  row = y % 4;
@@ -99,60 +130,58 @@ void plot_unset(Canvas *surf, int x, int y) {
     surf->colors[y * surf->px_w + x] = 0;
 }
 
+// to stdout
 // dump to stdout with utf-8 braille and space for the rest
-void plot_to_stdout(const Canvas *surf) {
+void render_row(const Canvas *surf, int y, bool use_color) {
+    for (int x = 0; x < surf->cell_w; ++x) {
+        uint8_t mask = surf->cells[y * surf->cell_w + x];
+        if (!mask) { putchar(' '); continue; }
+
+        if (use_color) {
+            uint32_t color = cell_color(surf, x, y);
+            print_cell_with_color(mask, color);
+        } else print_cell(mask);
+    }
+    putchar('\n');
+}
+
+void render_full(const Canvas *surf, bool use_color) {
     for (int y = 0; y < surf->cell_h; ++y) {
-        for (int x = 0; x < surf->cell_w; ++x) {
-            uint8_t mask = surf->cells[y * surf->cell_w + x];
-            if (mask == 0) {
-                putchar(' ');
-            } else {
-                uint32_t cp = braille_cp(mask);
-                char buf[4];
-                int n = utf8_encode(cp, buf);
-                fwrite(buf, 1, (size_t)n, stdout);
-            }
-        }
-        putchar('\n');
+        render_row(surf, y, use_color);
     }
 }
 
-void plot_to_stdout_color(const Canvas *surf) {
+void render_full_w_axes(const Canvas *surf,
+                     double xmin, double xmax, double ymin, double ymax,
+                     int x_ticks, int y_ticks, bool use_color) {
+
+    int pad = 8;
+    char buf[64];
+    int y_step = surf->cell_h / (y_ticks - 1);
+
     for (int y = 0; y < surf->cell_h; ++y) {
-        for (int x = 0; x < surf->cell_w; ++x) {
-            uint8_t mask = surf->cells[y * surf->cell_w + x];
-            if (mask == 0) {
-                putchar(' '); continue;
-            }
-
-            // find a color in this cell
-            uint32_t color = 0xFFFFFF; // default white
-            for (int dy = 0; dy < 4; ++dy) {
-                for (int dx = 0; dx < 2; ++dx) {
-                    int px = x*2 + dx, py = y*4 + dy;
-                    if (px < surf->px_w && py < surf->px_h) {
-                        int bit = braille_bit(dx, dy);
-                        if (mask & (1u << bit)) {
-                            color = surf->colors[py * surf->px_w + px];
-                            goto found_color;
-                        }
-                    }
-                }
-            }
-        found_color:;
-
-            uint32_t cp = braille_cp(mask);
-            char buf[4];
-            int n = utf8_encode(cp, buf);
-
-            int r = (color >> 16) & 0xFF;
-            int g = (color >> 8) & 0xFF;
-            int bcol = color & 0xFF;
-
-            printf("\x1b[38;2;%d;%d;%dm", r, g, bcol); // set fg color
-            fwrite(buf, 1, (size_t)n, stdout);
-            printf("\x1b[0m"); // reset
+        // print Y-axis labels
+        if (y % y_step == 0 || y == surf->cell_h - 1) {
+            double yval = ymax - (y / (double)(surf->cell_h - 1)) * (ymax - ymin);
+            snprintf(buf, sizeof(buf), "%.2f", yval);
+            printf("%*s ", pad-1, buf);
+        } else {
+            printf("%*s ", pad-1, "");
         }
-        putchar('\n');
+
+        render_row(surf, y, use_color);
     }
+
+    // print X-axis
+    printf("%*s", pad, "");
+    for (int i = 0; i < surf->cell_w; ++i) {
+        if (x_ticks > 1 && i % (surf->cell_w / (x_ticks - 1)) == 0) {
+            double xval = xmin + (i / (double)(surf->cell_w - 1)) * (xmax - xmin);
+            snprintf(buf, sizeof(buf), "%.2f", xval);
+            int len = (int)strlen(buf);
+            printf("%s", buf);
+            i += len - 1;
+        } else putchar(' ');
+    }
+    putchar('\n');
 }
